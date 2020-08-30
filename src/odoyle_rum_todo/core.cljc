@@ -9,11 +9,11 @@
        vec
        (o/insert session ::global ::all-todos)))
 
-(defn insert-todo! [*session id text]
+(defn insert-todo! [*session id attr->value]
   (swap! *session
          (fn [session]
            (-> session
-               (o/insert id {::text text ::done false})
+               (o/insert id attr->value)
                o/fire-rules))))
 
 (defn retract-todo! [*session id]
@@ -40,8 +40,10 @@
      [:then
       (let [*session (orum/prop)]
         [:section#todoapp
-         (todo-input {:initial-text ""
-                      :*session *session})
+         [:header#header
+          [:h1 "todos"]
+          (todo-input {:initial-text ""
+                       :*session *session})]
          (todo-list *session)])]
      
      todo-input
@@ -53,6 +55,9 @@
             on-stop (or on-stop #(swap! *local assoc :text ""))]
         [:input {:type "text"
                  :class "edit"
+                 :placeholder (if id
+                                "Enter your edit"
+                                "What needs to be done?")
                  :autoFocus true
                  :value text
                  :on-blur on-stop
@@ -61,8 +66,11 @@
                  :on-key-down (fn [e]
                                 (case (.-keyCode e)
                                   13
-                                  (do
-                                    (insert-todo! *session next-id text)
+                                  (let [todo (if id
+                                               {::text text}
+                                               ;; if the todo is new, set ::done as well
+                                               {::text text ::done false})]
+                                    (insert-todo! *session next-id todo)
                                     (on-save))
                                   27
                                   (on-stop)
@@ -89,7 +97,8 @@
           [:div.view
             [:input.toggle
               {:type "checkbox"
-               :checked done}]
+               :checked done
+               :on-change #(insert-todo! *session id {::done (not done)})}]
             [:label
              {:on-double-click #(reset! *editing true)}
              text]
