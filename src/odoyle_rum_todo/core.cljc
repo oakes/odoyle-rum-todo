@@ -40,24 +40,34 @@
      [:then
       (let [*session (orum/prop)]
         [:section#todoapp
-         (todo-input *session)
+         (todo-input {:initial-text ""
+                      :*session *session})
          (todo-list *session)])]
      
      todo-input
      [:then
-      (let [*session (orum/prop)
-            *local (orum/atom {:text "" :next-id 0})
-            {:keys [text next-id]} @*local]
+      (let [{:keys [*session initial-text id on-save on-stop]} (orum/prop)
+            *local (orum/atom {:text initial-text :next-id (or id 0)})
+            {:keys [text next-id]} @*local
+            on-save (or on-save #(reset! *local {:text "" :next-id (inc next-id)}))
+            on-stop (or on-stop #(swap! *local assoc :text ""))]
         [:input {:type "text"
                  :class "edit"
                  :autoFocus true
                  :value text
+                 :on-blur on-stop
                  :on-change (fn [e]
                               (swap! *local assoc :text (-> e .-target .-value)))
                  :on-key-down (fn [e]
-                                (when (= 13 (.-keyCode e))
-                                  (insert-todo! *session next-id text)
-                                  (reset! *local {:text "" :next-id (inc next-id)})))}])]
+                                (case (.-keyCode e)
+                                  13
+                                  (do
+                                    (insert-todo! *session next-id text)
+                                    (on-save))
+                                  27
+                                  (on-stop)
+                                  ;; else
+                                  nil))}])]
      
      todo-list
      [:what
@@ -71,16 +81,27 @@
      
      todo-item
      [:then
-      (let [{:keys [*session todo]} (orum/prop)
+      (let [*editing (orum/atom false)
+            {:keys [*session todo]} (orum/prop)
             {:keys [id text done]} todo]
-        [:li {:class (when done "completed")}
+        [:li {:class (str (when done "completed ")
+                          (when @*editing "editing"))}
           [:div.view
             [:input.toggle
               {:type "checkbox"
                :checked done}]
-            [:label text]
+            [:label
+             {:on-double-click #(reset! *editing true)}
+             text]
             [:button.destroy
-              {:on-click #(retract-todo! *session id)}]]])]}))
+              {:on-click #(retract-todo! *session id)}]]
+          (when @*editing
+            (todo-input
+              {:*session *session
+               :initial-text text
+               :id id
+               :on-save #(reset! *editing false)
+               :on-stop #(reset! *editing false)}))])]}))
 
 (def *session
   (-> (reduce o/add-rule (o/->session) (concat rules components))
