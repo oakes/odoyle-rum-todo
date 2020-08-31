@@ -11,24 +11,29 @@
             [clojure.edn :as edn]
             [clojure.data.codec.base64 :as base64]
             [rum.core :as rum]
+            [odoyle.rum :as orum]
             [odoyle-rum-todo.core :as c])
   (:gen-class))
 
 (def port 3000)
 
 (defn page [initial-state]
-  (let [;; if there are any todos in the user's ring session,
-        ;; insert them into the o'doyle session
-        session (c/insert-all-todos @c/*session (:all-todos initial-state))]
-    (-> "template.html" io/resource slurp
-        ;; render the html server-side
-        (str/replace "{{content}}" (rum/render-html (c/app-root (atom session))))
-        ;; save the todos in a hidden div that the client can read when it loads
-        ;; we are using base64 to prevent breakage (i.e. if a todo contains angle brackets)
-        (str/replace "{{initial-state}}" (-> (pr-str initial-state)
-                                             (.getBytes "UTF-8")
-                                             base64/encode
-                                             (String. "UTF-8"))))))
+  (binding [;; this binding causes the new matches triggered by `insert-all-todos`
+            ;; to be stored locally, so they don't affect other users
+            ;; that happen to be requesting this route at the same time
+            orum/*matches* (volatile! {})]
+    (let [;; if there are any todos in the user's ring session,
+          ;; insert them into the o'doyle session
+          session (c/insert-all-todos @c/*session (:all-todos initial-state))]
+      (-> "template.html" io/resource slurp
+          ;; render the html server-side
+          (str/replace "{{content}}" (rum/render-html (c/app-root (atom session))))
+          ;; save the todos in a hidden div that the client can read when it loads
+          ;; we are using base64 to prevent breakage (i.e. if a todo contains angle brackets)
+          (str/replace "{{initial-state}}" (-> (pr-str initial-state)
+                                               (.getBytes "UTF-8")
+                                               base64/encode
+                                               (String. "UTF-8")))))))
 
 (defmulti handler (juxt :request-method :uri))
 
