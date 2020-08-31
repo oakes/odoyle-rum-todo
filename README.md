@@ -4,4 +4,4 @@ This project shows how to make a todo list with [O'Doyle Rum](https://github.com
 
 * Install [the Clojure CLI tool](https://clojure.org/guides/getting_started#_clojure_installer_and_cli_tools)
 * To develop with figwheel: `clj -A:dev:cljs`
-* To install the release version: `clj -A:prod:cljs`
+* To build a JAR file: `clj -A:prod:cljs`
