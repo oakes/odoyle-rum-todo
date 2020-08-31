@@ -138,7 +138,8 @@
                           :all true
                           :active (not (:done todo))
                           :completed (:done todo))]
-              ^{:key (:id todo)} (todo-item {:*session *session :todo todo}))]])]
+              (-> (todo-item {:*session *session :todo todo})
+                  (rum/with-key (:id todo))))]])]
      
      todo-item
      [:then
