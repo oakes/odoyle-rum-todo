@@ -11,6 +11,19 @@
        vec
        (o/insert session ::global ::all-todos)))
 
+(defn insert-all-todos [session todos]
+  (->> todos
+       (reduce
+         (fn [session {:keys [id text done]}]
+           (o/insert session id {::text text ::done done}))
+         session)
+       o/fire-rules))
+
+(defn get-all-todos [session]
+  (-> (o/query-all session ::get-all-todos)
+      first
+      :all-todos))
+
 (defn insert! [*session id attr->value]
   (swap! *session
          (fn [session]
@@ -34,7 +47,11 @@
       [id ::text text]
       [id ::done done]
       :then
-      (o/reset! (refresh-all-todos o/*session*))]}))
+      (o/reset! (refresh-all-todos o/*session*))]
+     
+     ::get-all-todos
+     [:what
+      [::global ::all-todos all-todos]]}))
 
 (def components
   (orum/ruleset
@@ -154,7 +171,4 @@
                           ::showing :all})
       o/fire-rules
       atom))
-
-(defn update-session [session id state]
-  (o/fire-rules (o/insert session id state)))
 
