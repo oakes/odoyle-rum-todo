@@ -166,10 +166,11 @@
                :on-save #(reset! *editing false)
                :on-stop #(reset! *editing false)}))])]}))
 
-(def *session
+(def initial-session
   (-> (reduce o/add-rule (o/->session) (concat rules components))
       (o/insert ::global {::all-todos []
                           ::showing :all})
-      o/fire-rules
-      atom))
+      o/fire-rules))
+
+(def *session (atom initial-session))
 

@@ -25,7 +25,7 @@
     ;; if there are any todos in the user's ring session,
     ;; insert them into the o'doyle session.
     ;; we are only doing this for side-effects.
-    (c/insert-all-todos @c/*session (:all-todos initial-state))
+    (c/insert-all-todos c/initial-session (:all-todos initial-state))
     ;; render the html
     (-> "template.html" io/resource slurp
         (str/replace "{{content}}" (rum/render-html (c/app-root nil)))
