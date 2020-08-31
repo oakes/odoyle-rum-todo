@@ -46,8 +46,13 @@
      [:what
       [id ::text text]
       [id ::done done]
+      [::global ::next-id next-id {:then false}]
       :then
-      (o/reset! (refresh-all-todos o/*session*))]
+      (-> (refresh-all-todos o/*session*)
+          ;; update next-id if necessary
+          (cond-> (>= id next-id)
+                  (o/insert ::global ::next-id (inc id)))
+          o/reset!)]
      
      ::get-all-todos
      [:what
@@ -95,12 +100,14 @@
             "Clear completed"])])]
      
      todo-input
-     [:then
-      (let [{:keys [*session initial-text id on-save on-stop]} (orum/prop)
-            *local (orum/atom {:text initial-text :next-id (or id 0)})
-            {:keys [text next-id]} @*local
-            on-save (or on-save #(reset! *local {:text "" :next-id (inc next-id)}))
-            on-stop (or on-stop #(swap! *local assoc :text ""))]
+     [:what
+      [::global ::next-id next-id]
+      :then
+      (let [{:keys [*session initial-text id on-finish]} (orum/prop)
+            *text (orum/atom initial-text)
+            text @*text
+            next-id (or id next-id) ;; if there is an id in the prop, we are editing an existing todo
+            on-finish (or on-finish #(reset! *text ""))]
         [:input {:type "text"
                  :class "edit"
                  :placeholder (if id
@@ -108,9 +115,9 @@
                                 "What needs to be done?")
                  :autoFocus true
                  :value text
-                 :on-blur on-stop
+                 :on-blur on-finish
                  :on-change (fn [e]
-                              (swap! *local assoc :text (-> e .-target .-value)))
+                              (reset! *text (-> e .-target .-value)))
                  :on-key-down (fn [e]
                                 (case (.-keyCode e)
                                   13
@@ -119,9 +126,9 @@
                                                ;; if the todo is new, set ::done as well
                                                {::text text ::done false})]
                                     (insert! *session next-id todo)
-                                    (on-save))
+                                    (on-finish))
                                   27
-                                  (on-stop)
+                                  (on-finish)
                                   ;; else
                                   nil))}])]
      
@@ -163,13 +170,13 @@
               {:*session *session
                :initial-text text
                :id id
-               :on-save #(reset! *editing false)
-               :on-stop #(reset! *editing false)}))])]}))
+               :on-finish #(reset! *editing false)}))])]}))
 
 (def initial-session
   (-> (reduce o/add-rule (o/->session) (concat rules components))
       (o/insert ::global {::all-todos []
-                          ::showing :all})
+                          ::showing :all
+                          ::next-id 0})
       o/fire-rules))
 
 (def *session (atom initial-session))
