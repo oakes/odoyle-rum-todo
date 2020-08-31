@@ -9,14 +9,14 @@
        vec
        (o/insert session ::global ::all-todos)))
 
-(defn insert-todo! [*session id attr->value]
+(defn insert! [*session id attr->value]
   (swap! *session
          (fn [session]
            (-> session
                (o/insert id attr->value)
                o/fire-rules))))
 
-(defn retract-todo! [*session id]
+(defn retract! [*session id]
   (swap! *session
          (fn [session]
            (-> session
@@ -39,12 +39,41 @@
     {app-root
      [:then
       (let [*session (orum/prop)]
-        [:section#todoapp
-         [:header#header
-          [:h1 "todos"]
-          (todo-input {:initial-text ""
-                       :*session *session})]
-         (todo-list *session)])]
+        [:div
+         [:section#todoapp
+          [:header#header
+           [:h1 "todos"]
+           (todo-input {:initial-text ""
+                        :*session *session})]
+          (todo-list *session)
+          (footer *session)]
+         [:footer#info
+          [:p "Double-click to edit a todo"]]])]
+
+     footer
+     [:what
+      [::global ::all-todos all-todos]
+      [::global ::showing showing]
+      :then
+      (let [*session (orum/prop)
+            active-todos (remove :done all-todos)
+            completed-todos (filter :done all-todos)
+            active (count active-todos)
+            completed (count completed-todos)
+            filter-attrs (fn [filter-kw]
+                           {:class (when (= filter-kw showing) "selected")
+                            :on-click #(insert! *session ::global {::showing filter-kw})})]
+        [:footer#footer
+         [:span#todo-count
+          [:strong active] " " (case active 1 "item" "items") " left"]
+         [:ul#filters
+          [:li [:a (filter-attrs :all) "All"]]
+          [:li [:a (filter-attrs :active) "Active"]]
+          [:li [:a (filter-attrs :completed) "Completed"]]]
+         (when (pos? completed)
+           [:button#clear-completed {:on-click #(run! (partial retract! *session)
+                                                      (map :id completed-todos))}
+            "Clear completed"])])]
      
      todo-input
      [:then
@@ -70,7 +99,7 @@
                                                {::text text}
                                                ;; if the todo is new, set ::done as well
                                                {::text text ::done false})]
-                                    (insert-todo! *session next-id todo)
+                                    (insert! *session next-id todo)
                                     (on-save))
                                   27
                                   (on-stop)
@@ -80,11 +109,16 @@
      todo-list
      [:what
       [::global ::all-todos all-todos]
+      [::global ::showing showing]
       :then
       (let [*session (orum/prop)]
         [:section#main
           [:ul#todo-list
-            (for [todo all-todos]
+            (for [todo all-todos
+                  :when (case showing
+                          :all true
+                          :active (not (:done todo))
+                          :completed (:done todo))]
               ^{:key (:id todo)} (todo-item {:*session *session :todo todo}))]])]
      
      todo-item
@@ -98,12 +132,12 @@
             [:input.toggle
               {:type "checkbox"
                :checked done
-               :on-change #(insert-todo! *session id {::done (not done)})}]
+               :on-change #(insert! *session id {::done (not done)})}]
             [:label
              {:on-double-click #(reset! *editing true)}
              text]
             [:button.destroy
-              {:on-click #(retract-todo! *session id)}]]
+              {:on-click #(retract! *session id)}]]
           (when @*editing
             (todo-input
               {:*session *session
@@ -114,7 +148,8 @@
 
 (def *session
   (-> (reduce o/add-rule (o/->session) (concat rules components))
-      (o/insert ::global ::all-todos [])
+      (o/insert ::global {::all-todos []
+                          ::showing :all})
       o/fire-rules
       atom))
 
