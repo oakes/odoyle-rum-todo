@@ -30,5 +30,5 @@
                       (pr-str all-todos)))))
 
 ;; mount the root component
-(rum/mount (c/app-root c/*session)
+(rum/hydrate (c/app-root c/*session)
   (.querySelector js/document "#app"))
