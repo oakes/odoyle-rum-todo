@@ -46,12 +46,25 @@
      [:what
       [id ::text text]
       [id ::done done]
-      [::global ::next-id next-id {:then false}]
       :then
-      (-> (refresh-all-todos o/*session*)
-          ;; update next-id if necessary
-          (cond-> (>= id next-id)
-                  (o/insert ::global ::next-id (inc id)))
+      (-> o/*session*
+          refresh-all-todos
+          ;; insert event that triggers the update-next-id rule.
+          ;; note that there is nothing special about an "event".
+          ;; it is just a fact that we insert in order to trigger
+          ;; another rule, so we can keep a separation of concerns.
+          (o/insert ::event ::upsert-todo id)
+          o/reset!)]
+
+     ::update-next-id
+     [:what
+      [::event ::upsert-todo id]
+      [::global ::next-id next-id {:then false}]
+      :when
+      (>= id next-id)
+      :then
+      (-> o/*session*
+          (o/insert ::global ::next-id (inc id))
           o/reset!)]
      
      ::get-all-todos
