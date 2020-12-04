@@ -37,7 +37,6 @@
            (-> session
                (o/retract id ::text)
                (o/retract id ::done)
-               refresh-all-todos
                o/fire-rules))))
 
 (def rules
@@ -46,14 +45,21 @@
      [:what
       [id ::text text]
       [id ::done done]
+      ;; insert event that triggers the update-next-id rule.
+      ;; note that there is nothing special about an "event".
+      ;; it is just a fact that we insert in order to trigger
+      ;; another rule, so we can keep a separation of concerns.
       :then
       (-> o/*session*
-          refresh-all-todos
-          ;; insert event that triggers the update-next-id rule.
-          ;; note that there is nothing special about an "event".
-          ;; it is just a fact that we insert in order to trigger
-          ;; another rule, so we can keep a separation of concerns.
           (o/insert ::event ::upsert-todo id)
+          o/reset!)
+      ;; refresh the list of todos.
+      ;; we use :then-finally because it runs
+      ;; after todos are inserted *and* retracted.
+      ;; :then blocks are only run after insertions.
+      :then-finally
+      (-> o/*session*
+          refresh-all-todos
           o/reset!)]
 
      ::update-next-id
