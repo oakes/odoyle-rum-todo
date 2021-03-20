@@ -198,5 +198,15 @@
                           ::next-id 0})
       o/fire-rules))
 
-(def *session (atom initial-session))
+(defonce *session (atom initial-session))
+
+;; when figwheel reloads this file,
+;; get all the facts from the previous session
+;; and insert them into the new session
+;; so we don't wipe the state clean every time
+(swap! *session
+  (fn [session]
+    (->> (o/query-all session)
+         (reduce o/insert initial-session)
+         o/fire-rules)))
 
