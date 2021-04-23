@@ -1,9 +1,16 @@
 (ns odoyle-rum-todo.core
   (:require [rum.core :as rum]
             [odoyle.rules :as o]
-            [odoyle.rum :as orum])
-  #?(:cljs (:require-macros [odoyle.rules]
-                            [odoyle.rum])))
+            [odoyle.rum :as orum]
+            [clojure.spec.alpha :as s]))
+
+(s/def ::text string?)
+(s/def ::done boolean?)
+(s/def ::todo (s/keys :req-un [::text ::done]))
+(s/def ::all-todos (s/coll-of ::todo))
+(s/def ::next-id integer?)
+(s/def ::showing #{:all :active :completed})
+(s/def ::upsert-todo integer?)
 
 (defn refresh-all-todos [session]
   (->> (o/query-all session ::get-todo-item)
