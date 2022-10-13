@@ -57,7 +57,7 @@
       ;; it is just a fact that we insert in order to trigger
       ;; another rule, so we can keep a separation of concerns.
       :then
-      (-> o/*session*
+      (-> session
           (o/insert ::event ::upsert-todo id)
           o/reset!)
       ;; refresh the list of todos.
@@ -65,7 +65,7 @@
       ;; after todos are inserted *and* retracted.
       ;; :then blocks are only run after insertions.
       :then-finally
-      (-> o/*session*
+      (-> session
           refresh-all-todos
           o/reset!)]
 
@@ -76,7 +76,7 @@
       :when
       (>= id next-id)
       :then
-      (-> o/*session*
+      (-> session
           (o/insert ::global ::next-id (inc id))
           o/reset!)]
      
